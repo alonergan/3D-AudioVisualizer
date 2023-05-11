@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Audio Visualizer</title>
+    <audio id="audioFile" src="/lda.mp3"></audio>
+    <script type="module" src="/main.js"></script>
+    <link rel="stylesheet" href="style.css"/>
+  </head>
+
+  <body>
+    <div id="controls">
+      <button id="playButton" data-playing="false" role="switch" aria-checked="false">
+        <span>Play/Pause</span>
+      </button>
+      <input id="gainSlider" type="range" min="0" max="3" value="1" step=".01"/>
+    </div>
+
+    <div id="visualizer">
+      <canvas id="visCanvas" width="1000px" height="500px"></canvas>
+    </div>
+  </body>
+</html>
