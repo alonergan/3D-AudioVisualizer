@@ -4,12 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>3D Audio Visualizer</title>
-    <audio id="audioFile" src="/lda.mp3"></audio>
-    <script type="module" src="/main.js"></script>
+    <audio id="audioFile" src="/public/lda.mp3"></audio>
     <link rel="stylesheet" href="style.css"/>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/",
+          "simplex-noise": "https://unpkg.com/simplex-noise@4.0.1/dist/esm/simplex-noise.js"
+        }
+      }
+    </script>
   </head>
 
   <body>
+
+    <script type="module" src="/main.js"></script>
+    
     <div id="controls">
       <button id="playButton" data-playing="false" role="switch" aria-checked="false">
         <span>Play/Pause</span>
@@ -20,5 +31,6 @@
     <div id="visualizer">
       <canvas id="visCanvas" width="1000px" height="500px"></canvas>
     </div>
+  
   </body>
 </html>

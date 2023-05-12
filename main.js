@@ -43,7 +43,7 @@ function initScene() {
         0.1, // Near
         100, // Far
     );
-    camera.position.set(0, 0, 20);
+    camera.position.set(0, 0, 50);
 
     // Lights
     light = new THREE.AmbientLight('white', 1);
@@ -57,7 +57,7 @@ function initScene() {
  */
 function initObject() {
     const geometry = new THREE.IcosahedronGeometry(6, 6);
-    const material = new THREE.MeshLambertMaterial({color: 'blue', wireframe: true});
+    const material = new THREE.MeshLambertMaterial({color: 0x00ff00, wireframe: true});
     mesh = new THREE.Mesh(geometry, material);
     meshRadius = 6;
     
@@ -89,7 +89,7 @@ function initAudio() {
     source.connect(gainNode).connect(analyserNode).connect(audioContext.destination); // [Source] -> [Gain Node] -> [Analyser Node] -> [Destination]
   
     // Set up analyser
-    analyserNode.fftSize = 2048; // Default: 2048
+    analyserNode.fftSize = 512; // Default: 2048
     bufferLength = analyserNode.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
 
@@ -147,56 +147,76 @@ function initControls() {
  * Gets audio data for current frame and morphs object
  */
 function induceChange() {
+    // Rotate mesh and return if no audio is playing
+    rotateMesh();
+    if (playButton.dataset.playing === "false") {
+      return;
+    }
+
     // Get levels for frame
     analyserNode.getByteFrequencyData(dataArray);
 
     // Split into frequencies and get averages
-    const firstHalf = dataArray.slice(0, (dataArray.length / 2) - 1);
-    const secondHalf = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
-    const firstAvg = getAverage(firstHalf);
-    const secondAvg = getAverage(secondHalf);
+    const bassHalf = dataArray.slice(0, (dataArray.length / 2) - 1);
+    const trebHalf = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
+    const bassMax = getMax(bassHalf);
+    const trebAvg = getAverage(trebHalf);
 
     // Morph mesh
-    morphMesh();
+    morphMesh(bassMax / bassHalf.length, trebAvg / trebHalf.length);
 }
+
+/**
+ * Rotates mesh
+ */
+function rotateMesh() {
+  mesh.rotation.y += .005;
+  mesh.rotation.z -= .001;
+  mesh.rotation.x += .003;
+}
+
 
 /**
  * Morphs display mesh
  */
-function morphMesh(bassAvg, trebleAvg) {
-    // Rotate mesh
-    mesh.rotation.y += .005;
-
+function morphMesh(bassMax, trebleAvg) {
     // Update vertices based on audio data
-    const bassFrequency = modulateSignal(bassAvg, 0, 1, 0, 8);
+    bassMax = Math.pow(bassMax, .8);
+    const bassFrequency = modulateSignal(bassMax, 0, 1, 0, 8);
     const trebleFrequency = modulateSignal(trebleAvg, 0, 1, 0, 4);
 
-    // Compute new vertices
-    const normals = mesh.geometry.getAttribute("normal");
-    const vertices = mesh.geometry.getAttribute("position");
+    // Compute new vertices and get radius
+    const normalAttribute = mesh.geometry.getAttribute("normal");
+    const positionAttribute = mesh.geometry.getAttribute("position");
+    mesh.geometry.computeBoundingSphere();
     
-    for (let i = 0; i < vertices.count; i ++) {
-        // Get variables for morphing
-        let x = vertices.getX(i);
-        let y = vertices.getY(i);
-        let z = vertices.getZ(i);
+    let vertex = new THREE.Vector3();
+    
+    for (let i = 0; i < positionAttribute.count; i++) {
+        // Get vertex and normalize, then get variables for morphing
+        vertex.fromBufferAttribute(positionAttribute, i);
+        vertex.normalize();
         const amplitude = 5;
         const time = window.performance.now();
         const rf = 0.00001;
 
         // Calculate new distance
-        const distance = (meshRadius + bassFrequency) + noise(x + time * rf * 4, y + time * rf * 6, z + time * rf * 7) * amplitude * trebleFrequency * 2;
+        let n = noise(vertex.x + time * rf * 4, vertex.y + time * rf * 6, vertex.z + time * rf * 7) * amplitude * trebleFrequency * 2;
+        let distance = (6 + bassFrequency) + n;
+        
 
         // Update vertices
-        x = normals[i] * distance;
-        y = normals[i + 1] * distance;
-        z = normals[i + 2] * distance;
+        vertex.multiplyScalar(distance);
 
         // Set Vertices
-        vertices.setXYZ(i, x, y, z);
+        positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
     }
     // Update mesh
-    vertices.needsUpdate = true;
+    positionAttribute.needsUpdate = true;
+    normalAttribute.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+    
+  
     
 }
 
@@ -219,9 +239,20 @@ function modulateSignal(signal, min, max, outMin, outMax) {
 function getAverage(array) {
     let sum = 0;
     for (let i = 0; i < array.length; i++) {
-        sum += array.ge;
+        sum += array[i];
     }
     return (sum / array.length);
+}
+
+/**
+ * Return max of array
+ */
+function getMax(array) {
+  let max = 0;
+  for (let i = 0; i < array.length; i++) {
+    max = Math.max(array[i], max);
+  }
+  return max;
 }
 
 /**
